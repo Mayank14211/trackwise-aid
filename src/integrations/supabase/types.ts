@@ -14,7 +14,151 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          details: Json | null
+          id: string
+          outcome: Database["public"]["Enums"]["action_outcome"]
+          recommendation_id: string | null
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          id?: string
+          outcome: Database["public"]["Enums"]["action_outcome"]
+          recommendation_id?: string | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          id?: string
+          outcome?: Database["public"]["Enums"]["action_outcome"]
+          recommendation_id?: string | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendations: {
+        Row: {
+          action: string
+          created_at: string
+          expected_delay_reduction: number | null
+          id: string
+          reason: string
+          status: Database["public"]["Enums"]["recommendation_status"]
+          train_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          expected_delay_reduction?: number | null
+          id?: string
+          reason: string
+          status?: Database["public"]["Enums"]["recommendation_status"]
+          train_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          expected_delay_reduction?: number | null
+          id?: string
+          reason?: string
+          status?: Database["public"]["Enums"]["recommendation_status"]
+          train_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendations_train_id_fkey"
+            columns: ["train_id"]
+            isOneToOne: false
+            referencedRelation: "trains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenarios: {
+        Row: {
+          config_json: Json
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          config_json?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          config_json?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trains: {
+        Row: {
+          actual_time: string | null
+          created_at: string
+          current_section: string | null
+          delay: number | null
+          id: string
+          name: string
+          priority: Database["public"]["Enums"]["train_priority"]
+          scheduled_time: string | null
+          type: Database["public"]["Enums"]["train_type"]
+          updated_at: string
+        }
+        Insert: {
+          actual_time?: string | null
+          created_at?: string
+          current_section?: string | null
+          delay?: number | null
+          id?: string
+          name: string
+          priority?: Database["public"]["Enums"]["train_priority"]
+          scheduled_time?: string | null
+          type?: Database["public"]["Enums"]["train_type"]
+          updated_at?: string
+        }
+        Update: {
+          actual_time?: string | null
+          created_at?: string
+          current_section?: string | null
+          delay?: number | null
+          id?: string
+          name?: string
+          priority?: Database["public"]["Enums"]["train_priority"]
+          scheduled_time?: string | null
+          type?: Database["public"]["Enums"]["train_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +167,10 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      action_outcome: "success" | "failure" | "partial"
+      recommendation_status: "pending" | "accepted" | "rejected" | "modified"
+      train_priority: "low" | "normal" | "high" | "emergency"
+      train_type: "passenger" | "freight" | "express" | "regional"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +297,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      action_outcome: ["success", "failure", "partial"],
+      recommendation_status: ["pending", "accepted", "rejected", "modified"],
+      train_priority: ["low", "normal", "high", "emergency"],
+      train_type: ["passenger", "freight", "express", "regional"],
+    },
   },
 } as const
