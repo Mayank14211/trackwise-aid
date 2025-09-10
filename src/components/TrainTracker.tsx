@@ -1,109 +1,164 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Train, AlertTriangle } from "lucide-react";
+import { Clock, Train, AlertTriangle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface TrainData {
   id: string;
-  number: string;
-  status: "on-time" | "delayed" | "conflict";
-  currentBlock: string;
-  nextSignal: string;
+  name: string;
+  type: string;
+  priority: string;
+  current_section: string | null;
+  scheduled_time: string | null;
+  actual_time: string | null;
   delay: number;
-  eta: string;
 }
 
-const mockTrains: TrainData[] = [
-  {
-    id: "1",
-    number: "IC 2047",
-    status: "on-time",
-    currentBlock: "A-12",
-    nextSignal: "S-45",
-    delay: 0,
-    eta: "14:23"
-  },
-  {
-    id: "2", 
-    number: "RE 4521",
-    status: "delayed",
-    currentBlock: "B-8",
-    nextSignal: "S-32",
-    delay: 5,
-    eta: "14:28"
-  },
-  {
-    id: "3",
-    number: "FR 9834",
-    status: "conflict",
-    currentBlock: "C-15",
-    nextSignal: "S-67",
-    delay: 0,
-    eta: "14:25"
-  }
-];
-
 export function TrainTracker() {
+  const { data: trains, isLoading, error } = useQuery({
+    queryKey: ['trains'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trains')
+        .select('*')
+        .order('scheduled_time', { ascending: true });
+      
+      if (error) throw error;
+      return data as TrainData[];
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const getTrainStatus = (train: TrainData) => {
+    if (train.delay > 10) return "delayed";
+    if (train.delay > 0) return "warning";
+    return "on-time";
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "on-time": return "success";
-      case "delayed": return "warning";
-      case "conflict": return "danger";
-      default: return "neutral";
+      case "on-time": return "default";
+      case "delayed": return "destructive";
+      case "warning": return "secondary";
+      default: return "outline";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "conflict": return AlertTriangle;
+      case "delayed": return AlertTriangle;
       default: return Train;
     }
   };
 
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return "--:--";
+    return new Date(timestamp).toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="bg-card border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Train className="h-5 w-5 text-primary" />
+            Active Trains
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-muted-foreground">Loading trains...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error || !trains?.length) {
+    return (
+      <Card className="bg-card border-border/50">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Train className="h-5 w-5 text-primary" />
+            Active Trains
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No active trains found</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="bg-card border-border/50">
+    <Card className="bg-card border-border/50 transition-all duration-300 hover:border-primary/30 hover:shadow-glow">
       <CardHeader>
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Train className="h-5 w-5 text-primary" />
           Active Trains
+          <span className="ml-auto text-sm font-normal text-muted-foreground">
+            {trains.length} active
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {mockTrains.map((train) => {
-            const StatusIcon = getStatusIcon(train.status);
+        <div className="space-y-3">
+          {trains.map((train) => {
+            const status = getTrainStatus(train);
+            const StatusIcon = getStatusIcon(status);
             
             return (
               <div
                 key={train.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border/30"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-secondary/30 border border-border/30 transition-colors hover:bg-secondary/50 gap-3 sm:gap-0"
               >
-                <div className="flex items-center space-x-3">
-                  <StatusIcon className={`h-5 w-5 text-${getStatusColor(train.status)}`} />
-                  <div>
-                    <div className="font-medium text-foreground">{train.number}</div>
+                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                  <StatusIcon className={`h-5 w-5 flex-shrink-0 ${
+                    status === 'delayed' ? 'text-destructive' : 
+                    status === 'warning' ? 'text-warning' : 'text-success'
+                  }`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-foreground truncate">{train.name}</div>
                     <div className="text-sm text-muted-foreground">
-                      Block: {train.currentBlock} → Signal: {train.nextSignal}
+                      <span className="capitalize">{train.type}</span> • Priority: <span className="capitalize">{train.priority}</span>
                     </div>
+                    {train.current_section && (
+                      <div className="text-xs text-muted-foreground">
+                        Section: {train.current_section}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-between sm:justify-end space-x-4 flex-shrink-0">
                   <div className="text-right">
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Clock className="h-3 w-3 mr-1" />
-                      ETA: {train.eta}
+                      <span className="hidden sm:inline">Scheduled:</span> {formatTime(train.scheduled_time)}
                     </div>
+                    {train.actual_time && (
+                      <div className="text-xs text-muted-foreground">
+                        Actual: {formatTime(train.actual_time)}
+                      </div>
+                    )}
                     {train.delay > 0 && (
-                      <div className="text-xs text-warning">
+                      <div className="text-xs text-destructive font-medium">
                         +{train.delay}min delay
                       </div>
                     )}
                   </div>
                   <Badge 
-                    variant={getStatusColor(train.status) as any}
-                    className="capitalize"
+                    variant={getStatusColor(status)}
+                    className="capitalize whitespace-nowrap"
                   >
-                    {train.status}
+                    {status === 'on-time' ? 'On Time' : status}
                   </Badge>
                 </div>
               </div>
